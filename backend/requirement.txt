@@ -1,0 +1,9 @@
+fastapi
+uvicorn[standard]
+python-multipart
+numpy
+nibabel
+pydicom
+matplotlib
+Pillow
+highdicom
