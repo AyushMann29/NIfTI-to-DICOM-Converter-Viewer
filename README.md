@@ -3,7 +3,7 @@
 A full-stack web application designed for medical professionals and researchers to upload, convert, and visualize 3D medical scans. This tool seamlessly converts NIfTI files (`.nii.gz`) into a web-viewable format, complete with segmentation masks, using a modern, responsive, and efficient architecture.
 
 This project was developed as part of an internship application to demonstrate proficiency in full-stack development, system architecture, and medical imaging data handling.
-
+Youtube link : https://youtu.be/qGjBI__D_50
 ---
 
 ## ✨ Core Features
