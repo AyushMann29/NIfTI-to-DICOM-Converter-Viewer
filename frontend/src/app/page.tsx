@@ -186,7 +186,7 @@ const FileUploadComponent: React.FC<FileUploadComponentProps> = ({
   return (
     <div className="bg-white rounded-lg shadow-lg p-6 max-w-2xl mx-auto">
       <h2 className="text-2xl font-bold text-gray-800 mb-6">Upload Medical Images</h2>
-      
+      <h4 className="text-2xl font-bold text-gray-800 mb-6">Backend may take upto 50 seconds to start after pressing Upload as it is still in free tier</h4>
       {error && (
         <div className="bg-red-50 border border-red-200 rounded-md p-4 mb-6 flex items-center">
           <AlertCircle className="h-5 w-5 text-red-500 mr-2" />
