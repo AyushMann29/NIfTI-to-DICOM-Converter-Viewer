@@ -1,28 +1,43 @@
 {
   "compilerOptions": {
-    "target": "ES2017",
-    
+    // Type Checking
+    "strict": true,                   // Enable all strict type-checking options.
+    "noUnusedLocals": true,           // Report errors on unused local variables.
+    "noUnusedParameters": true,       // Report errors on unused parameters.
+    "noImplicitReturns": true,        // Report error when not all code paths in function return a value.
+    "noFallthroughCasesInSwitch": true, // Report errors for fallthrough cases in switch statement.
+    "skipLibCheck": true,             // Skip type checking of declaration files.
+    "allowJs": true,                  // Allow JavaScript files to be compiled.
+
+    // Modules
+    "module": "esnext",               // Specify module code generation.
+    "moduleResolution": "bundler",    // Use the modern 'bundler' module resolution strategy.
+    "resolveJsonModule": true,        // Enable importing .json files.
+    "isolatedModules": true,          // Ensure that each file can be safely transpiled without relying on other imports.
+
+    // Emit
+    "noEmit": true,                   // Do not emit output files (Next.js handles this).
+    "jsx": "preserve",                // Do not transform JSX (Next.js handles this).
+    "incremental": true,              // Enable incremental compilation.
+
+    // Language and Environment
+    "target": "es5",                  // Set the JavaScript language version for emitted files and include compatible library declarations.
     "lib": ["dom", "dom.iterable", "esnext"],
-    "allowJs": true,
-    "skipLibCheck": true,
-    "strict": true,
-    "noEmit": true,
-    "esModuleInterop": true,
-    "module": "esnext",
-    "moduleResolution": "bundler",
-    "resolveJsonModule": true,
-    "isolatedModules": true,
-    "jsx": "preserve",
-    "incremental": true,
+    "esModuleInterop": true,          // Emit additional JavaScript to ease support for CommonJS modules.
+    "forceConsistentCasingInFileNames": true, // Disallow inconsistently-cased references to the same file.
+
+    // Path Aliases
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["./*"]
+    },
+
+    // Next.js Plugin
     "plugins": [
       {
         "name": "next"
       }
-    ],
-    "baseUrl": ".",
-    "paths": {
-      "@/*": ["./*"]
-    }
+    ]
   },
   "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts"],
   "exclude": ["node_modules"]
