@@ -2,6 +2,9 @@
 
 import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { Upload, FileText, CheckCircle, AlertCircle, Eye, EyeOff, Loader } from 'lucide-react';
+import { useRouter } from 'next/navigation';
+import { supabase } from '../app/utils/supabaseClient';
+
 
 // Global type declarations
 declare global {
@@ -17,7 +20,6 @@ declare global {
 }
 interface UploadedFile {
   image: File | null;
-  mask: File | null;
 }
 
 interface RadioGraphyType {
@@ -55,92 +57,81 @@ interface FileUploadComponentProps {
   onUploadStart: () => void;
 }
 
-const FileUploadComponent: React.FC<FileUploadComponentProps> = ({ 
-  onUploadSuccess, 
-  onUploadStart 
+const FileUploadComponent: React.FC<FileUploadComponentProps> = ({
+  onUploadSuccess,
+  onUploadStart
 }) => {
   const [dragActive, setDragActive] = useState<boolean>(false);
-  const [files, setFiles] = useState<UploadedFile>({ image: null, mask: null });
-  const [radiographyType, setRadiographyType] = useState<string>('CBCT');
+  const [file, setFile] = useState<File | null>(null);
   const [isUploading, setIsUploading] = useState<boolean>(false);
   const [uploadProgress, setUploadProgress] = useState<number>(0);
   const [error, setError] = useState<string>('');
 
-  const radiographyTypes: RadioGraphyType[] = [
-    { value: 'CBCT', label: 'Cone Beam CT' },
-    { value: 'CT', label: 'Computed Tomography' },
-    { value: 'MRI', label: 'Magnetic Resonance Imaging' },
-    { value: 'X-RAY', label: 'X-Ray' }
-  ];
+  const router = useRouter();
+
+  useEffect(() => {
+    const checkUserSession = async () => {
+      const { data } = await supabase.auth.getSession();
+      if (!data.session) {
+        router.push('/login');
+      }
+    };
+    checkUserSession();
+  }, [router]);
+
+  const validateFile = (file: File): boolean => {
+    const validExtensions = ['.nii.gz', '.nii'];
+    return validExtensions.some(ext => file.name.toLowerCase().endsWith(ext));
+  };
+
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setError('');
+    const selected = e.target.files?.[0];
+    if (selected && validateFile(selected)) {
+      setFile(selected);
+    } else {
+      setError('Please select a valid .nii or .nii.gz file');
+    }
+  };
 
   const handleDrag = useCallback((e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault();
     e.stopPropagation();
-    if (e.type === "dragenter" || e.type === "dragover") {
-      setDragActive(true);
-    } else if (e.type === "dragleave") {
-      setDragActive(false);
+    if (e.type === "dragenter" || e.type === "dragleave" || e.type === "dragover") {
+      setDragActive(e.type === "dragenter" || e.type === "dragover");
     }
   }, []);
-
-  const validateFile = (file: File): boolean => {
-    const validExtensions = ['.nii.gz', '.nii'];
-    const isValid = validExtensions.some(ext => file.name.toLowerCase().endsWith(ext));
-    return isValid;
-  };
 
   const handleDrop = useCallback((e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault();
     e.stopPropagation();
     setDragActive(false);
     setError('');
-
     const droppedFiles = Array.from(e.dataTransfer.files);
-    if (droppedFiles.length > 2) {
-      setError('Please upload exactly 2 files: one image and one mask');
+    if (droppedFiles.length !== 1) {
+      setError('Please upload exactly 1 NIfTI image file');
       return;
     }
-
-    droppedFiles.forEach(file => {
-      if (!validateFile(file)) {
-        setError('Please upload only .nii or .nii.gz files');
-        return;
-      }
-      
-      if (file.name.toLowerCase().includes('mask') || file.name.toLowerCase().includes('seg')) {
-        setFiles(prev => ({ ...prev, mask: file }));
-      } else {
-        setFiles(prev => ({ ...prev, image: file }));
-      }
-    });
+    const file = droppedFiles[0];
+    if (!validateFile(file)) {
+      setError('Please upload only .nii or .nii.gz files');
+      return;
+    }
+    setFile(file);
   }, []);
 
-  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>, type: 'image' | 'mask') => {
-    setError('');
-    const file = e.target.files?.[0];
-    if (file && validateFile(file)) {
-      setFiles(prev => ({ ...prev, [type]: file }));
-    } else {
-      setError('Please select a valid .nii or .nii.gz file');
-    }
-  };
-
   const handleUpload = async (): Promise<void> => {
-    if (!files.image || !files.mask) {
-      setError('Please select both image and mask files');
+    if (!file) {
+      setError('Please select an image file');
       return;
     }
-
     setIsUploading(true);
     setUploadProgress(0);
     setError('');
-    
     onUploadStart();
 
     const formData = new FormData();
-    formData.append('image_file', files.image);
-    formData.append('mask_file', files.mask);
-    formData.append('radiography_type', radiographyType);
+    formData.append('image_file', file);
 
     try {
       const progressInterval = setInterval(() => {
@@ -167,11 +158,11 @@ const FileUploadComponent: React.FC<FileUploadComponentProps> = ({
       }
 
       const result: UploadResult = await response.json();
-      
+
       setTimeout(() => {
         setIsUploading(false);
         onUploadSuccess(result);
-        setFiles({ image: null, mask: null });
+        setFile(null);
         setUploadProgress(0);
       }, 500);
 
@@ -183,10 +174,27 @@ const FileUploadComponent: React.FC<FileUploadComponentProps> = ({
     }
   };
 
+  const handleLogout = useCallback(async () => {
+    await supabase.auth.signOut();
+    router.push('/login');
+  }, [router]);
+
   return (
+    
     <div className="bg-white rounded-lg shadow-lg p-6 max-w-2xl mx-auto">
-      <h2 className="text-2xl font-bold text-gray-800 mb-6">Upload Medical Images</h2>
-      <h4 className="text-2xl font-bold text-gray-800 mb-6">Backend may take upto 50 seconds to start after pressing Upload as it is still in free tier</h4>
+      <div>
+        <div className="flex justify-end">
+          <button
+            onClick={handleLogout}
+            className="px-4 py-2 bg-red-400 text-white rounded hover:bg-red-700 cursor-pointer transition"
+            >
+            Logout
+          </button>
+        </div>
+      {/* ...rest of your page content... */}
+    </div>
+      <h2 className="text-2xl font-bold text-gray-800 mb-6">Upload Medical Image</h2>
+      <h4 className="text-2xl font-bold text-gray-800 mb-6">Backend may take up to 50 seconds to start after pressing Upload as it is still in free tier</h4>
       {error && (
         <div className="bg-red-50 border border-red-200 rounded-md p-4 mb-6 flex items-center">
           <AlertCircle className="h-5 w-5 text-red-500 mr-2" />
@@ -207,96 +215,44 @@ const FileUploadComponent: React.FC<FileUploadComponentProps> = ({
       >
         <Upload className="h-12 w-12 text-gray-400 mx-auto mb-4" />
         <p className="text-lg text-gray-600 mb-2">
-          Drag and drop your files here, or click to select
+          Drag and drop your file here, or click to select
         </p>
         <p className="text-sm text-gray-500">
-          Upload exactly 2 files: NIfTI image (.nii.gz) and segmentation mask (.nii.gz)
+          Upload exactly 1 file: NIfTI image (.nii or .nii.gz)
         </p>
-      </div>
-
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-6">
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            Image File
-          </label>
-          <div className="relative">
-            <input
-              type="file"
-              accept=".nii,.nii.gz"
-              onChange={(e) => handleFileSelect(e, 'image')}
-              className="hidden"
-              id="image-upload"
-            />
-            <label
-              htmlFor="image-upload"
-              className="flex items-center justify-center w-full h-32 border-2 border-gray-300 border-dashed rounded-lg cursor-pointer hover:bg-gray-50"
-            >
-              {files.image ? (
-                <div className="text-center">
-                  <FileText className="h-8 w-8 text-green-500 mx-auto mb-2" />
-                  <p className="text-sm text-gray-600 truncate px-2">
-                    {files.image.name}
-                  </p>
-                </div>
-              ) : (
-                <div className="text-center">
-                  <Upload className="h-8 w-8 text-gray-400 mx-auto mb-2" />
-                  <p className="text-sm text-gray-500">Select image file</p>
-                </div>
-              )}
-            </label>
-          </div>
-        </div>
-
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            Mask File
-          </label>
-          <div className="relative">
-            <input
-              type="file"
-              accept=".nii,.nii.gz"
-              onChange={(e) => handleFileSelect(e, 'mask')}
-              className="hidden"
-              id="mask-upload"
-            />
-            <label
-              htmlFor="mask-upload"
-              className="flex items-center justify-center w-full h-32 border-2 border-gray-300 border-dashed rounded-lg cursor-pointer hover:bg-gray-50"
-            >
-              {files.mask ? (
-                <div className="text-center">
-                  <FileText className="h-8 w-8 text-green-500 mx-auto mb-2" />
-                  <p className="text-sm text-gray-600 truncate px-2">
-                    {files.mask.name}
-                  </p>
-                </div>
-              ) : (
-                <div className="text-center">
-                  <Upload className="h-8 w-8 text-gray-400 mx-auto mb-2" />
-                  <p className="text-sm text-gray-500">Select mask file</p>
-                </div>
-              )}
-            </label>
-          </div>
-        </div>
       </div>
 
       <div className="mt-6">
         <label className="block text-sm font-medium text-gray-700 mb-2">
-          Radiography Type
+          Image File
         </label>
-        <select
-          value={radiographyType}
-          onChange={(e) => setRadiographyType(e.target.value)}
-          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-        >
-          {radiographyTypes.map(type => (
-            <option key={type.value} value={type.value}>
-              {type.label}
-            </option>
-          ))}
-        </select>
+        <div className="relative">
+          <input
+            type="file"
+            accept=".nii,.nii.gz"
+            onChange={handleFileSelect}
+            className="hidden"
+            id="image-upload"
+          />
+          <label
+            htmlFor="image-upload"
+            className="flex items-center justify-center w-full h-32 border-2 border-gray-300 border-dashed rounded-lg cursor-pointer hover:bg-gray-50"
+          >
+            {file ? (
+              <div className="text-center">
+                <FileText className="h-8 w-8 text-green-500 mx-auto mb-2" />
+                <p className="text-sm text-gray-600 truncate px-2">
+                  {file.name}
+                </p>
+              </div>
+            ) : (
+              <div className="text-center">
+                <Upload className="h-8 w-8 text-gray-400 mx-auto mb-2" />
+                <p className="text-sm text-gray-500">Select image file</p>
+              </div>
+            )}
+          </label>
+        </div>
       </div>
 
       {isUploading && (
@@ -316,9 +272,9 @@ const FileUploadComponent: React.FC<FileUploadComponentProps> = ({
 
       <button
         onClick={handleUpload}
-        disabled={!files.image || !files.mask || isUploading}
+        disabled={!file || isUploading}
         className={`w-full mt-6 py-3 px-4 rounded-md font-medium transition-all duration-200 ${
-          (!files.image || !files.mask || isUploading)
+          (!file || isUploading)
             ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
             : 'bg-blue-600 text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2'
         }`}
@@ -508,6 +464,25 @@ const DicomViewer: React.FC<DicomViewerProps> = ({ studyData }) => {
   );
 };
 
+
+// Logout Button Component
+export function LogoutButton() {
+  const router = useRouter();
+
+  const handleLogout = useCallback(async () => {
+    await supabase.auth.signOut();
+    router.push('/login');
+  }, [router]);
+
+  return (
+    <button
+      onClick={handleLogout}
+      className="px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600 transition"
+    >
+      Logout
+    </button>
+  );
+}
 
 // Main Application Component
 const MedicalImagingApp: React.FC = () => {

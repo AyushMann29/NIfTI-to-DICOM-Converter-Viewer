@@ -7,3 +7,4 @@ pydicom
 matplotlib
 Pillow
 highdicom
+supabase
