@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useCallback, useEffect, useRef } from 'react';
-import { Upload, FileText, CheckCircle, AlertCircle, Eye, EyeOff, Loader } from 'lucide-react';
+import { Upload, FileText, AlertCircle, Eye, EyeOff, Loader } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '../app/utils/supabaseClient';
 
@@ -9,39 +9,23 @@ import { supabase } from '../app/utils/supabaseClient';
 // Global type declarations
 declare global {
   interface Window {
-    OHIFViewer: any;
-    cornerstone: any;
-    cornerstoneWebImageLoader: any;
-    cornerstoneMath: any;
-    cornerstoneTools: any;
-    jQuery: any;
-    $: any;
+    OHIFViewer: unknown;
+    cornerstone: unknown;
+    cornerstoneWebImageLoader: unknown;
+    cornerstoneMath: unknown;
+    cornerstoneTools: unknown;
+    jQuery: unknown;
+    $: unknown;
   }
-}
-interface UploadedFile {
-  image: File | null;
-}
-
-interface RadioGraphyType {
-  value: string;
-  label: string;
-}
-
-interface AvailableClass {
-  label: string;
-  value: number;
-}
-
-interface StudyMetadata {
-  StudyInstanceUID: string;
-  StudyDate: string;
-  RadiographyType: string;
-  AvailableClasses: AvailableClass[];
-  PatientID: string;
 }
 
 interface UploadResult {
   study_id: string;
+}
+
+interface AvailableClass {
+  value: number;
+  label: string;
 }
 
 interface StudyData {
@@ -422,7 +406,7 @@ const DicomViewer: React.FC<DicomViewerProps> = ({ studyData }) => {
             min="0"
             max={studyData.image_urls.length - 1}
             value={currentSlice}
-            onChange={(e) => setCurrentSlice(parseInt(e.target.value))}
+            onChange={(e) => setCurrentSlice(Number(e.target.value))}
             className="w-32"
           />
           <span>{currentSlice + 1} / {studyData.image_urls.length}</span>
@@ -432,11 +416,9 @@ const DicomViewer: React.FC<DicomViewerProps> = ({ studyData }) => {
       {/* Main Viewer Area */}
       <div className="flex-1 relative flex items-center justify-center bg-black max-h-80">
         <img
-          key={currentSlice}
           src={studyData.image_urls[currentSlice]}
-          alt={`Slice ${currentSlice + 1}`}
-          className="max-w-full max-h-full"
-          style={{ objectFit: 'contain' }}
+          alt={`slice ${currentSlice + 1}`}
+          className="max-h-80 mx-auto"
         />
       </div>
 

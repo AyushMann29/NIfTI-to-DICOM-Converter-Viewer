@@ -3,12 +3,13 @@
 import os
 from dotenv import load_dotenv
 
-load_dotenv()  # <-- This must come before os.getenv
+load_dotenv()
 
 import uuid
 import json
 import datetime
 from typing import List
+import concurrent.futures
 
 import numpy as np
 import nibabel as nib
@@ -42,6 +43,12 @@ UPLOAD_ROOT = "uploads"
 os.makedirs(UPLOAD_ROOT, exist_ok=True)
 app.mount("/uploads", StaticFiles(directory=UPLOAD_ROOT), name="uploads")
 
+def upload_png_to_supabase(study_id, png_filename, local_png_path):
+    with open(local_png_path, "rb") as f:
+        supabase.storage.from_("medical_scans").upload(
+            f"{study_id}/previews/{png_filename}", f
+        )
+
 def convert_nifti_to_png_previews(study_id: str):
     study_path = os.path.join(UPLOAD_ROOT, study_id)
     image_path = os.path.join(study_path, "image.nii.gz")
@@ -52,6 +59,7 @@ def convert_nifti_to_png_previews(study_id: str):
     preview_path = os.path.join(study_path, "previews")
     os.makedirs(preview_path, exist_ok=True)
 
+    png_paths = []
     for i in range(image_array.shape[2]):
         slice_2d = image_array[:, :, i]
         min_val, max_val = slice_2d.min(), slice_2d.max()
@@ -64,11 +72,11 @@ def convert_nifti_to_png_previews(study_id: str):
         local_png_path = os.path.join(preview_path, png_filename)
         img.save(local_png_path, 'PNG', optimize=True)
 
-        # --- Upload to Supabase Storage ---
-        with open(local_png_path, "rb") as f:
-            supabase.storage.from_("medical_scans").upload(
-                f"{study_id}/previews/{png_filename}", f
-            )
+        png_paths.append((study_id, png_filename, local_png_path))
+
+    # Parallel upload
+    with concurrent.futures.ThreadPoolExecutor(max_workers=8) as executor:
+        executor.map(lambda args: upload_png_to_supabase(*args), png_paths)
 
     metadata = {
         "StudyDate": datetime.datetime.utcnow().strftime("%Y%m%d"),
