@@ -108,7 +108,7 @@ export default function Viewer({ studyId }: { studyId: string }) {
         }
 
         if (isMounted) setInitialized(true);
-      } catch (err: any) {
+      } catch (err: unknown) {
         if (isMounted) setError(`Initialization Error: ${err.message}`);
       }
     };
@@ -201,7 +201,7 @@ export default function Viewer({ studyId }: { studyId: string }) {
         }
 
         renderingEngine.render();
-            } catch (err: any) {
+            } catch (err: unknown) {
         setError(err.message);
             }
           };

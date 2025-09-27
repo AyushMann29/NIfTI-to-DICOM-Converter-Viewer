@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useCallback, useEffect, useRef } from 'react';
+import Image from 'next/image';
 import { Upload, FileText, AlertCircle, Eye, EyeOff, Loader } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '../app/utils/supabaseClient';
@@ -415,10 +416,12 @@ const DicomViewer: React.FC<DicomViewerProps> = ({ studyData }) => {
 
       {/* Main Viewer Area */}
       <div className="flex-1 relative flex items-center justify-center bg-black max-h-80">
-        <img
+        <Image
           src={studyData.image_urls[currentSlice]}
           alt={`slice ${currentSlice + 1}`}
           className="max-h-80 mx-auto"
+          width={800}
+          height={800}
         />
       </div>
 
