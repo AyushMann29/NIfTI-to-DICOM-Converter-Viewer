@@ -29,7 +29,6 @@ import {
 
 // --- DICOM Loader and Parser Imports ---
 import cornerstoneDICOMImageLoader from '@cornerstonejs/dicom-image-loader';
-import dicomParser from 'dicom-parser';
 
 // --- Aliases & Constants ---
 const { ViewportType } = csEnums;

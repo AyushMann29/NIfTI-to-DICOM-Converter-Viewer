@@ -361,7 +361,7 @@ interface DicomViewerProps {
 
 const DicomViewer: React.FC<DicomViewerProps> = ({ studyData }) => {
   // --- HOOKS CALLED UNCONDITIONALLY AT THE TOP ---
-  const [currentSlice, setCurrentSlice] = useState<number>(0);
+  const [currentSlice, setCurrentSlice] = useState(0);
 
   // This hook ensures the currentSlice index is valid if the studyData changes.
   // It is now called on every render, which follows the Rules of Hooks.
@@ -442,6 +442,21 @@ const DicomViewer: React.FC<DicomViewerProps> = ({ studyData }) => {
           Next
         </button>
       </div>
+
+      {studyData && (
+        <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 bg-gray-800 p-2 rounded">
+          <input
+            type="range"
+            min={0}
+            max={studyData.image_urls.length - 1}
+            value={currentSlice}
+            onChange={e => setCurrentSlice(Number(e.target.value))}
+          />
+          <span className="text-white ml-2">
+            {currentSlice + 1} / {studyData.image_urls.length}
+          </span>
+        </div>
+      )}
     </div>
   );
 };
