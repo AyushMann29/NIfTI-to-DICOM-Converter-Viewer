@@ -1,12 +1,18 @@
 // app/viewer/[studyId]/page.tsx
 'use client';
 
+type PageProps = {
+  params: {
+    studyId: string;
+  };
+};
 import Viewer from '@/components/Viewer';
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '../../utils/supabaseClient';
 
-export default function ViewerPage({ params }: { params: { studyId: string } }) {
+export default function ViewerPage({ params }: PageProps) {
+  const studyId = params.studyId as string;
   const router = useRouter();
   const [loading, setLoading] = useState(true);
   const [imageUrls, setImageUrls] = useState<string[]>([]);
@@ -24,7 +30,7 @@ export default function ViewerPage({ params }: { params: { studyId: string } }) 
     // Fetch image URLs from backend
     const fetchImages = async () => {
       setLoading(true);
-      const res = await fetch(`http://127.0.0.1:8000/studies/${params.studyId}/instances`);
+      const res = await fetch(`http://127.0.0.1:8000/studies/${studyId}/instances`);
       if (res.ok) {
         const data = await res.json();
         setImageUrls(data.image_urls);
@@ -32,7 +38,7 @@ export default function ViewerPage({ params }: { params: { studyId: string } }) 
       setLoading(false);
     };
     fetchImages();
-  }, [params.studyId]);
+  }, [studyId]);
 
   if (loading) {
     return <div className="min-h-screen flex items-center justify-center">Loading...</div>;
@@ -40,7 +46,7 @@ export default function ViewerPage({ params }: { params: { studyId: string } }) 
 
   return (
     <div className="w-screen h-screen bg-black">
-      <Viewer studyId={params.studyId} imageUrls={imageUrls} />
+      <Viewer studyId={studyId} imageUrls={imageUrls} />
     </div>
   );
 }
