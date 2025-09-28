@@ -1,5 +1,3 @@
-// components/Viewer.tsx
-
 'use client';
 
 import { useEffect, useRef, useState } from "react";
@@ -49,7 +47,7 @@ type SegmentationVisibility = {
 };
 
 // --- Main Viewer Component ---
-export default function Viewer({ studyId }: { studyId: string }) {
+export default function Viewer({ studyId, imageUrls }: { studyId: string; imageUrls: string[] }) {
   const [studyData, setStudyData] = useState<StudyData | null>(null);
   const [visibility, setVisibility] = useState<SegmentationVisibility>({});
   const [error, setError] = useState<string | null>(null);
@@ -174,58 +172,61 @@ export default function Viewer({ studyId }: { studyId: string }) {
         const viewport = renderingEngine.getViewport(viewportId) as StackViewport;
         await viewport.setStack(data.image_urls);
 
-        // Segmentation setup
+        // Segmentation setup - FIXED: Use segmentationId property instead of id
         if (data.seg_url) {
-          const existingSegs = segmentation.state.getSegmentations().map(seg => seg.id);
+          const existingSegs = segmentation.state.getSegmentations().map(seg => seg.segmentationId);
           if (!existingSegs.includes(segmentationId)) {
             await segmentation.addSegmentations([{
               segmentationId,
               representation: {
-          type: SegmentationRepresentations.Labelmap,
-          volume: { volumeId: data.seg_url },
+                type: SegmentationRepresentations.Labelmap,
+                volume: { volumeId: data.seg_url },
               },
             }]);
           }
 
-          const segReps = segmentation.state.getSegmentationRepresentations(segmentationId);
-          if (!segReps.some(rep => 
-            'representationData' in rep && 
-            typeof rep.representationData === 'object' &&
-            rep.representationData !== null &&
-            'volumeId' in rep.representationData &&
-            (rep.representationData as { volumeId: string }).volumeId === data.seg_url
-          )) {
-            segmentation.addSegmentationRepresentations(segmentationId, [
+          const segReps = segmentation.state.getSegmentationRepresentations(toolGroupId);
+          if (!segReps || segReps.length === 0) {
+            await segmentation.addSegmentationRepresentations(toolGroupId, [
               {
+                segmentationId,
                 type: SegmentationRepresentations.Labelmap,
-                data: {
-                  volumeId: data.seg_url,
-                },
               },
             ]);
           }
         }
 
         renderingEngine.render();
-            } catch (err: unknown) {
-        setError(err.message);
-            }
-          };
+      } catch (err: unknown) {
+        const errorMessage = err instanceof Error ? err.message : 'Unknown error occurred';
+        setError(errorMessage);
+      }
+    };
 
-          loadAndRender();
-        }, [studyId, initialized]);
+    loadAndRender();
+  }, [studyId, initialized]);
 
-        // --- Segmentation Visibility Toggle ---
+  // --- Segmentation Visibility Toggle ---
   const handleToggleVisibility = (segmentValue: number) => {
     const newVisibilityState = !visibility[segmentValue];
     setVisibility(prev => ({ ...prev, [segmentValue]: newVisibilityState }));
 
-    segmentation.config.visibility.setSegmentIndexVisibility(
-      segmentationId,
-      { segmentationId, type: SegmentationRepresentations.Labelmap },
-      Number(newVisibilityState),
-      true // Assuming the fourth argument is a boolean for visibility
-    );
+    // Update segmentation visibility in cornerstone
+    try {
+      segmentation.config.visibility.setSegmentIndexVisibility(
+        segmentationId,
+        segmentValue,
+        newVisibilityState
+      );
+      
+      // Trigger re-render
+      const renderingEngine = getRenderingEngine(renderingEngineId);
+      if (renderingEngine) {
+        renderingEngine.render();
+      }
+    } catch (error) {
+      console.error('Error toggling segmentation visibility:', error);
+    }
   };
 
   // --- Render ---
