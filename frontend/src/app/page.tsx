@@ -5,7 +5,7 @@ import Image from 'next/image';
 import { Upload, FileText, AlertCircle, Eye, EyeOff, Loader } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '../app/utils/supabaseClient';
-import LogoutButton from '../components/LogoutButton';
+import ExternalLogoutButton from '../components/LogoutButton';
 
 
 // Global type declarations
@@ -165,7 +165,7 @@ const FileUploadComponent: React.FC<FileUploadComponentProps> = ({
     <div className="bg-white rounded-lg shadow-lg p-6 max-w-2xl mx-auto">
       <div>
         <div className="flex justify-end">
-        <LogoutButton />
+        <ExternalLogoutButton />
         </div>
     </div>
       <h2 className="text-2xl font-bold text-gray-800 mb-6">Upload Medical Image</h2>
@@ -454,25 +454,6 @@ const DicomViewer: React.FC<DicomViewerProps> = ({ studyData }) => {
   );
 };
 
-
-// Logout Button Component
-export function LogoutButton() {
-  const router = useRouter();
-
-  const handleLogout = useCallback(async () => {
-    await supabase.auth.signOut();
-    router.push('/login');
-  }, [router]);
-
-  return (
-    <button
-      onClick={handleLogout}
-      className="px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600 transition"
-    >
-      Logout
-    </button>
-  );
-}
 
 // Main Application Component
 const MedicalImagingApp: React.FC = () => {
