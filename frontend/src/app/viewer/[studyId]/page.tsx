@@ -6,13 +6,7 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '../../utils/supabaseClient';
 
-interface ViewerPageProps {
-  params: {
-    studyId: string;
-  };
-}
-
-export default function ViewerPage({ params }: ViewerPageProps) {
+export default function ViewerPage({ params }: { params: { studyId: string } }) {
   const router = useRouter();
   const [loading, setLoading] = useState(true);
   const [imageUrls, setImageUrls] = useState<string[]>([]);
