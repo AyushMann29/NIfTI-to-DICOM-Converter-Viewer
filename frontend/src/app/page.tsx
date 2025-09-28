@@ -6,7 +6,7 @@ import { Upload, FileText, AlertCircle, Eye, EyeOff, Loader } from 'lucide-react
 import { useRouter } from 'next/navigation';
 import { supabase } from '../app/utils/supabaseClient';
 import LogoutButton from '../components/LogoutButton';
-import Viewer from '../components/Viewer';
+
 
 // Global type declarations
 declare global {
@@ -160,126 +160,109 @@ const FileUploadComponent: React.FC<FileUploadComponentProps> = ({
     }
   };
 
-  const handleLogout = useCallback(async () => {
-    await supabase.auth.signOut();
-    router.push('/login');
-  }, [router]);
-
   return (
-    <div>
-      <header className="w-full flex justify-end items-center px-8 py-4 bg-white shadow-md">
+    
+    <div className="bg-white rounded-lg shadow-lg p-6 max-w-2xl mx-auto">
+      <div>
+        <div className="flex justify-end">
         <LogoutButton />
-      </header>
-      <main>
-        <div className="bg-white rounded-lg shadow-lg p-6 max-w-2xl mx-auto">
-          <div>
-            <div className="flex justify-end">
-              <button
-                onClick={handleLogout}
-                className="px-4 py-2 bg-red-400 text-white rounded hover:bg-red-700 cursor-pointer transition"
-                >
-                Logout
-              </button>
-            </div>
-          {/* ...rest of your page content... */}
         </div>
-          <h2 className="text-2xl font-bold text-gray-800 mb-6">Upload Medical Image</h2>
-          <h4 className="text-2xl font-bold text-gray-800 mb-6">Backend may take up to 50 seconds to start after pressing Upload as it is still in free tier</h4>
-          {error && (
-            <div className="bg-red-50 border border-red-200 rounded-md p-4 mb-6 flex items-center">
-              <AlertCircle className="h-5 w-5 text-red-500 mr-2" />
-              <span className="text-red-700">{error}</span>
-            </div>
-          )}
+    </div>
+      <h2 className="text-2xl font-bold text-gray-800 mb-6">Upload Medical Image</h2>
+      <h4 className="text-2xl font-bold text-gray-800 mb-6">Backend may take up to 50 seconds to start after pressing Upload as it is still in free tier</h4>
+      {error && (
+        <div className="bg-red-50 border border-red-200 rounded-md p-4 mb-6 flex items-center">
+          <AlertCircle className="h-5 w-5 text-red-500 mr-2" />
+          <span className="text-red-700">{error}</span>
+        </div>
+      )}
 
-          <div
-            className={`border-2 border-dashed rounded-lg p-8 text-center transition-all duration-200 ${
-              dragActive 
-                ? 'border-blue-400 bg-blue-50' 
-                : 'border-gray-300 hover:border-gray-400'
-            }`}
-            onDragEnter={handleDrag}
-            onDragLeave={handleDrag}
-            onDragOver={handleDrag}
-            onDrop={handleDrop}
+      <div
+        className={`border-2 border-dashed rounded-lg p-8 text-center transition-all duration-200 ${
+          dragActive 
+            ? 'border-blue-400 bg-blue-50' 
+            : 'border-gray-300 hover:border-gray-400'
+        }`}
+        onDragEnter={handleDrag}
+        onDragLeave={handleDrag}
+        onDragOver={handleDrag}
+        onDrop={handleDrop}
+      >
+        <Upload className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+        <p className="text-lg text-gray-600 mb-2">
+          Drag and drop your file here, or click to select
+        </p>
+        <p className="text-sm text-gray-500">
+          Upload exactly 1 file: NIfTI image (.nii or .nii.gz)
+        </p>
+      </div>
+
+      <div className="mt-6">
+        <label className="block text-sm font-medium text-gray-700 mb-2">
+          Image File
+        </label>
+        <div className="relative">
+          <input
+            type="file"
+            accept=".nii,.nii.gz"
+            onChange={handleFileSelect}
+            className="hidden"
+            id="image-upload"
+          />
+          <label
+            htmlFor="image-upload"
+            className="flex items-center justify-center w-full h-32 border-2 border-gray-300 border-dashed rounded-lg cursor-pointer hover:bg-gray-50"
           >
-            <Upload className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-            <p className="text-lg text-gray-600 mb-2">
-              Drag and drop your file here, or click to select
-            </p>
-            <p className="text-sm text-gray-500">
-              Upload exactly 1 file: NIfTI image (.nii or .nii.gz)
-            </p>
-          </div>
-
-          <div className="mt-6">
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Image File
-            </label>
-            <div className="relative">
-              <input
-                type="file"
-                accept=".nii,.nii.gz"
-                onChange={handleFileSelect}
-                className="hidden"
-                id="image-upload"
-              />
-              <label
-                htmlFor="image-upload"
-                className="flex items-center justify-center w-full h-32 border-2 border-gray-300 border-dashed rounded-lg cursor-pointer hover:bg-gray-50"
-              >
-                {file ? (
-                  <div className="text-center">
-                    <FileText className="h-8 w-8 text-green-500 mx-auto mb-2" />
-                    <p className="text-sm text-gray-600 truncate px-2">
-                      {file.name}
-                    </p>
-                  </div>
-                ) : (
-                  <div className="text-center">
-                    <Upload className="h-8 w-8 text-gray-400 mx-auto mb-2" />
-                    <p className="text-sm text-gray-500">Select image file</p>
-                  </div>
-                )}
-              </label>
-            </div>
-          </div>
-
-          {isUploading && (
-            <div className="mt-6">
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-sm text-gray-600">Uploading...</span>
-                <span className="text-sm text-gray-600">{uploadProgress}%</span>
-              </div>
-              <div className="w-full bg-gray-200 rounded-full h-2">
-                <div 
-                  className="bg-blue-600 h-2 rounded-full transition-all duration-300"
-                  style={{ width: `${uploadProgress}%` }}
-                />
-              </div>
-            </div>
-          )}
-
-          <button
-            onClick={handleUpload}
-            disabled={!file || isUploading}
-            className={`w-full mt-6 py-3 px-4 rounded-md font-medium transition-all duration-200 ${
-              (!file || isUploading)
-                ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                : 'bg-blue-600 text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2'
-            }`}
-          >
-            {isUploading ? (
-              <div className="flex items-center justify-center">
-                <Loader className="animate-spin h-5 w-5 mr-2" />
-                Uploading...
+            {file ? (
+              <div className="text-center">
+                <FileText className="h-8 w-8 text-green-500 mx-auto mb-2" />
+                <p className="text-sm text-gray-600 truncate px-2">
+                  {file.name}
+                </p>
               </div>
             ) : (
-              'Upload and Process'
+              <div className="text-center">
+                <Upload className="h-8 w-8 text-gray-400 mx-auto mb-2" />
+                <p className="text-sm text-gray-500">Select image file</p>
+              </div>
             )}
-          </button>
+          </label>
         </div>
-      </main>
+      </div>
+
+      {isUploading && (
+        <div className="mt-6">
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-sm text-gray-600">Uploading...</span>
+            <span className="text-sm text-gray-600">{uploadProgress}%</span>
+          </div>
+          <div className="w-full bg-gray-200 rounded-full h-2">
+            <div 
+              className="bg-blue-600 h-2 rounded-full transition-all duration-300"
+              style={{ width: `${uploadProgress}%` }}
+            />
+          </div>
+        </div>
+      )}
+
+      <button
+        onClick={handleUpload}
+        disabled={!file || isUploading}
+        className={`w-full mt-6 py-3 px-4 rounded-md font-medium transition-all duration-200 ${
+          (!file || isUploading)
+            ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+            : 'bg-blue-600 text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2'
+        }`}
+      >
+        {isUploading ? (
+          <div className="flex items-center justify-center">
+            <Loader className="animate-spin h-5 w-5 mr-2" />
+            Uploading...
+          </div>
+        ) : (
+          'Upload and Process'
+        )}
+      </button>
     </div>
   );
 };
