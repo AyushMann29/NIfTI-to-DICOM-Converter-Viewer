@@ -109,7 +109,13 @@ export default function Viewer({ studyId }: { studyId: string }) {
 
         if (isMounted) setInitialized(true);
       } catch (err: unknown) {
-        if (isMounted) setError(`Initialization Error: ${err.message}`);
+        let msg = 'Initialization Error';
+        if (err instanceof Error) {
+          msg = `Initialization Error: ${err.message}`;
+        } else if (typeof err === 'string') {
+          msg = `Initialization Error: ${err}`;
+        }
+        if (isMounted) setError(msg);
       }
     };
 
