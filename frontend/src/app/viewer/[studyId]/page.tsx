@@ -1,47 +1,82 @@
-// app/viewer/[studyId]/page.tsx
 'use client';
 
-type PageProps = {
-  params: {
-    studyId: string;
-  };
-};
 import Viewer from '@/components/Viewer';
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '../../utils/supabaseClient';
 
+type PageProps = {
+  params: Promise<{
+    studyId: string;
+  }>;
+};
+
 export default function ViewerPage({ params }: PageProps) {
-  const studyId = params.studyId as string;
+  const [studyId, setStudyId] = useState<string>('');
   const router = useRouter();
   const [loading, setLoading] = useState(true);
   const [imageUrls, setImageUrls] = useState<string[]>([]);
+  const [authChecked, setAuthChecked] = useState(false);
+
+  // Resolve the params promise
+  useEffect(() => {
+    params.then((resolvedParams) => {
+      setStudyId(resolvedParams.studyId);
+    }).catch((error) => {
+      console.error('Error resolving params:', error);
+    });
+  }, [params]);
 
   useEffect(() => {
     // Check authentication
-    supabase.auth.getSession().then(({ data }) => {
-      if (!data.session) {
+    const checkAuth = async () => {
+      try {
+        const { data } = await supabase.auth.getSession();
+        if (!data.session) {
+          router.push('/login');
+        } else {
+          setAuthChecked(true);
+        }
+      } catch (error) {
+        console.error('Auth check error:', error);
         router.push('/login');
       }
-    });
+    };
+
+    checkAuth();
   }, [router]);
 
   useEffect(() => {
-    // Fetch image URLs from backend
+    // Only fetch images when studyId is available and auth is checked
+    if (!studyId || !authChecked) return;
+
     const fetchImages = async () => {
       setLoading(true);
-      const res = await fetch(`http://127.0.0.1:8000/studies/${studyId}/instances`);
-      if (res.ok) {
-        const data = await res.json();
-        setImageUrls(data.image_urls);
+      try {
+        const res = await fetch(`http://127.0.0.1:8000/studies/${studyId}/instances`);
+        if (res.ok) {
+          const data = await res.json();
+          setImageUrls(data.image_urls);
+        } else {
+          console.error('Failed to fetch images:', res.status);
+        }
+      } catch (error) {
+        console.error('Failed to fetch images:', error);
+      } finally {
+        setLoading(false);
       }
-      setLoading(false);
     };
+    
     fetchImages();
-  }, [studyId]);
+  }, [studyId, authChecked]);
 
-  if (loading) {
-    return <div className="min-h-screen flex items-center justify-center">Loading...</div>;
+  // Show loading state while resolving params, checking auth, or fetching images
+  if (loading || !studyId || !authChecked) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-black">
+        <div className="text-white text-lg">Loading study...</div>
+      </div>
+    );
   }
 
   return (
@@ -50,4 +85,3 @@ export default function ViewerPage({ params }: PageProps) {
     </div>
   );
 }
-
