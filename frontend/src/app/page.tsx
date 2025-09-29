@@ -6,7 +6,11 @@ import { Upload, FileText, AlertCircle, Eye, EyeOff, Loader } from 'lucide-react
 import { useRouter } from 'next/navigation';
 import { supabase } from '../app/utils/supabaseClient';
 import ExternalLogoutButton from '../components/LogoutButton';
+import LoginPage from '../app/login/page';
 
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+const authEnabled = !!supabaseUrl && !!supabaseKey;
 
 // Global type declarations
 declare global {
@@ -461,7 +465,16 @@ const MedicalImagingApp: React.FC = () => {
   const [studyData, setStudyData] = useState<StudyData | null>(null);
   const [availableClasses, setAvailableClasses] = useState<AvailableClass[]>([]);
   const [isProcessing, setIsProcessing] = useState<boolean>(false);
+  const [loggedIn, setLoggedIn] = useState(!authEnabled);
   const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null);
+
+  useEffect(() => {
+    if (authEnabled) {
+      supabase.auth.getSession().then(({ data }) => {
+        setLoggedIn(!!data.session);
+      });
+    }
+  }, []);
 
   const handleUploadSuccess = async (uploadResult: { study_id: string }): Promise<void> => {
     setCurrentStudyId(uploadResult.study_id);
@@ -535,6 +548,10 @@ const MedicalImagingApp: React.FC = () => {
     setIsProcessing(false);
   };
 
+  if (authEnabled && !loggedIn) {
+    return <LoginPage onLogin={() => setLoggedIn(true)} />;
+  }
+
   return (
     <div className="min-h-screen bg-gray-50">
       <header className="bg-white shadow-sm border-b">
@@ -594,6 +611,103 @@ const MedicalImagingApp: React.FC = () => {
             </button>
           </div>
         )}
+      </div>
+    </div>
+  );
+};
+
+interface LoginPageProps {
+  onLogin: () => void;
+}
+
+const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [error, setError] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+
+  const router = useRouter();
+
+  const handleLogin = async () => {
+    setError('');
+    setIsLoading(true);
+
+    if (!email || !password) {
+      setError('Please enter both email and password');
+      setIsLoading(false);
+      return;
+    }
+
+    try {
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
+
+      if (error) {
+        throw error;
+      }
+
+      setIsLoading(false);
+      onLogin();
+      router.push('/');
+
+    } catch (err) {
+      setIsLoading(false);
+      const errorMessage = err instanceof Error ? err.message : 'Login failed. Please try again.';
+      setError(errorMessage);
+    }
+  };
+
+  return (
+    <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="bg-white rounded-lg shadow-lg p-8 max-w-md w-full">
+        <h2 className="text-2xl font-bold text-gray-800 mb-6 text-center">
+          Login to Your Account
+        </h2>
+
+        {error && (
+          <div className="bg-red-50 border border-red-200 rounded-md p-4 mb-6 flex items-center">
+            <AlertCircle className="h-5 w-5 text-red-500 mr-2" />
+            <span className="text-red-700">{error}</span>
+          </div>
+        )}
+
+        <div className="mb-4">
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            Email
+          </label>
+          <input
+            type="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            className="w-full p-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+            placeholder="you@example.com"
+          />
+        </div>
+
+        <div className="mb-6">
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            Password
+          </label>
+          <input
+            type="password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            className="w-full p-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+            placeholder="••••••••"
+          />
+        </div>
+
+        <button
+          onClick={() => {
+            handleLogin();
+            onLogin();
+          }}
+          className="bg-blue-600 text-white px-6 py-3 rounded-lg shadow-lg hover:bg-blue-700 transition-colors"
+        >
+          Login
+        </button>
       </div>
     </div>
   );

@@ -47,7 +47,7 @@ type SegmentationVisibility = {
 };
 
 // --- Main Viewer Component ---
-export default function Viewer({ studyId, imageUrls }: { studyId: string; imageUrls: string[] }) {
+export default function Viewer({ studyId }: { studyId: string }) {
   const [studyData, setStudyData] = useState<StudyData | null>(null);
   const [visibility, setVisibility] = useState<SegmentationVisibility>({});
   const [error, setError] = useState<string | null>(null);
