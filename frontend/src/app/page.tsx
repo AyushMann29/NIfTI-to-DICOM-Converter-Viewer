@@ -11,13 +11,39 @@ const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 const authEnabled = !!supabaseUrl && !!supabaseKey;
 
-// Conditional supabase import
-let supabase: any = null;
+// Conditional supabase import with proper typing
+interface SupabaseSession {
+  session: {
+    access_token: string;
+    refresh_token: string;
+    expires_in: number;
+    expires_at?: number;
+    token_type: string;
+    user: {
+      id: string;
+      email?: string;
+      // Add other user properties as needed
+    };
+  } | null;
+}
+
+interface SupabaseClient {
+  auth: {
+    getSession: () => Promise<{ data: SupabaseSession; error: Error | null }>;
+    // Add other auth methods as needed
+  };
+}
+
+let supabase: SupabaseClient | null = null;
 if (authEnabled) {
   try {
-    const supabaseModule = require('../app/utils/supabaseClient');
-    supabase = supabaseModule.supabase;
-  } catch (error) {
+    // Use dynamic import instead of require
+    import('../app/utils/supabaseClient').then((supabaseModule) => {
+      supabase = supabaseModule.supabase as SupabaseClient;
+    }).catch((error: Error) => {
+      console.warn('Supabase client not available, falling back to local mode', error);
+    });
+  } catch {
     console.warn('Supabase client not available, falling back to local mode');
   }
 }
@@ -469,7 +495,7 @@ const MedicalImagingApp: React.FC = () => {
 
   useEffect(() => {
     if (authEnabled && supabase) {
-      supabase.auth.getSession().then(({ data }: any) => {
+      supabase.auth.getSession().then(({ data }: { data: SupabaseSession }) => {
         setLoggedIn(!!data.session);
       });
     }
