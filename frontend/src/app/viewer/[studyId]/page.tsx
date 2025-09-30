@@ -17,17 +17,27 @@ export default function ViewerPage({ params }: PageProps) {
   const [loading, setLoading] = useState(true);
   const [imageUrls, setImageUrls] = useState<string[]>([]);
   const [authChecked, setAuthChecked] = useState(false);
+  const [isClient, setIsClient] = useState(false);
+
+  // Mark when we're on client to avoid hydration mismatches
+  useEffect(() => {
+    setIsClient(true);
+  }, []);
 
   // Resolve the params promise
   useEffect(() => {
+    if (!isClient) return;
+    
     params.then((resolvedParams) => {
       setStudyId(resolvedParams.studyId);
     }).catch((error) => {
       console.error('Error resolving params:', error);
     });
-  }, [params]);
+  }, [params, isClient]);
 
   useEffect(() => {
+    if (!isClient) return;
+    
     // Check authentication
     const checkAuth = async () => {
       try {
@@ -44,11 +54,11 @@ export default function ViewerPage({ params }: PageProps) {
     };
 
     checkAuth();
-  }, [router]);
+  }, [router, isClient]);
 
   useEffect(() => {
     // Only fetch images when studyId is available and auth is checked
-    if (!studyId || !authChecked) return;
+    if (!studyId || !authChecked || !isClient) return;
 
     const fetchImages = async () => {
       setLoading(true);
@@ -68,10 +78,10 @@ export default function ViewerPage({ params }: PageProps) {
     };
     
     fetchImages();
-  }, [studyId, authChecked]);
+  }, [studyId, authChecked, isClient]);
 
-  // Show loading state while resolving params, checking auth, or fetching images
-  if (loading || !studyId || !authChecked) {
+  // Show loading state on server and initial client render
+  if (!isClient || loading || !studyId || !authChecked) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-black">
         <div className="text-white text-lg">Loading study...</div>
@@ -80,7 +90,7 @@ export default function ViewerPage({ params }: PageProps) {
   }
 
   return (
-    <div className="w-screen h-screen bg-black">
+    <div className="w-screen h-screen bg-black" suppressHydrationWarning>
       <Viewer studyId={studyId} imageUrls={imageUrls} />
     </div>
   );

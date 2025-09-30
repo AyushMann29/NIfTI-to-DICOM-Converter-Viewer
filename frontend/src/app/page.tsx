@@ -4,13 +4,23 @@ import React, { useState, useCallback, useEffect, useRef } from 'react';
 import Image from 'next/image';
 import { Upload, FileText, AlertCircle, Eye, EyeOff, Loader } from 'lucide-react';
 import { useRouter } from 'next/navigation';
-import { supabase } from '../app/utils/supabaseClient';
 import ExternalLogoutButton from '../components/LogoutButton';
 import LoginPage from '../app/login/page';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 const authEnabled = !!supabaseUrl && !!supabaseKey;
+
+// Conditional supabase import
+let supabase: any = null;
+if (authEnabled) {
+  try {
+    const supabaseModule = require('../app/utils/supabaseClient');
+    supabase = supabaseModule.supabase;
+  } catch (error) {
+    console.warn('Supabase client not available, falling back to local mode');
+  }
+}
 
 // Global type declarations
 declare global {
@@ -60,13 +70,15 @@ const FileUploadComponent: React.FC<FileUploadComponentProps> = ({
   const router = useRouter();
 
   useEffect(() => {
-    const checkUserSession = async () => {
-      const { data } = await supabase.auth.getSession();
-      if (!data.session) {
-        router.push('/login');
-      }
-    };
-    checkUserSession();
+    if (authEnabled && supabase) {
+      const checkUserSession = async () => {
+        const { data } = await supabase.auth.getSession();
+        if (!data.session) {
+          router.push('/login');
+        }
+      };
+      checkUserSession();
+    }
   }, [router]);
 
   const validateFile = (file: File): boolean => {
@@ -165,15 +177,22 @@ const FileUploadComponent: React.FC<FileUploadComponentProps> = ({
   };
 
   return (
-    
     <div className="bg-white rounded-lg shadow-lg p-6 max-w-2xl mx-auto">
-      <div>
-        <div className="flex justify-end">
-        <ExternalLogoutButton />
+      {authEnabled && (
+        <div className="flex justify-end mb-4">
+          <ExternalLogoutButton />
         </div>
-    </div>
+      )}
       <h2 className="text-2xl font-bold text-gray-800 mb-6">Upload Medical Image</h2>
-      <h4 className="text-2xl font-bold text-gray-800 mb-6">Backend may take up to 50 seconds to start after pressing Upload as it is still in free tier</h4>
+      {!authEnabled && (
+        <div className="bg-yellow-50 border border-yellow-200 rounded-md p-4 mb-6">
+          <p className="text-yellow-700 text-sm">
+            <strong>Local Mode:</strong> Running without Supabase. Files will be processed locally.
+          </p>
+        </div>
+      )}
+      <h4 className="text-lg font-semibold text-gray-800 mb-6">Backend may take up to 50 seconds to start after pressing Upload as it is still in free tier</h4>
+      
       {error && (
         <div className="bg-red-50 border border-red-200 rounded-md p-4 mb-6 flex items-center">
           <AlertCircle className="h-5 w-5 text-red-500 mr-2" />
@@ -349,24 +368,20 @@ const SegmentationSidebar: React.FC<SegmentationSidebarProps> = ({
   );
 };
 
-// --- CORRECTED DicomViewer Component ---
+// DicomViewer Component
 interface DicomViewerProps {
   studyData: StudyData | null;
 }
 
 const DicomViewer: React.FC<DicomViewerProps> = ({ studyData }) => {
-  // --- HOOKS CALLED UNCONDITIONALLY AT THE TOP ---
   const [currentSlice, setCurrentSlice] = useState(0);
 
-  // This hook ensures the currentSlice index is valid if the studyData changes.
-  // It is now called on every render, which follows the Rules of Hooks.
   useEffect(() => {
     if (studyData && currentSlice >= studyData.image_urls.length) {
       setCurrentSlice(studyData.image_urls.length - 1);
     }
   }, [studyData, currentSlice]);
 
-  // --- CONDITIONAL RETURN HAPPENS AFTER ALL HOOKS ---
   if (!studyData || studyData.image_urls.length === 0) {
     return (
       <div className="bg-black rounded-lg h-full relative overflow-hidden flex flex-col items-center justify-center">
@@ -378,7 +393,6 @@ const DicomViewer: React.FC<DicomViewerProps> = ({ studyData }) => {
     );
   }
 
-  // --- RENDER LOGIC (ASSUMES studyData EXISTS) ---
   const nextSlice = () => {
     setCurrentSlice(prev => Math.min(prev + 1, studyData.image_urls.length - 1));
   };
@@ -416,6 +430,7 @@ const DicomViewer: React.FC<DicomViewerProps> = ({ studyData }) => {
           className="max-h-80 mx-auto"
           width={800}
           height={800}
+          unoptimized={studyData.image_urls[currentSlice]?.startsWith('blob:')}
         />
       </div>
 
@@ -439,25 +454,9 @@ const DicomViewer: React.FC<DicomViewerProps> = ({ studyData }) => {
           Next
         </button>
       </div>
-
-      {studyData && (
-        <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 bg-gray-800 p-2 rounded">
-          <input
-            type="range"
-            min={0}
-            max={studyData.image_urls.length - 1}
-            value={currentSlice}
-            onChange={e => setCurrentSlice(Number(e.target.value))}
-          />
-          <span className="text-white ml-2">
-            {currentSlice + 1} / {studyData.image_urls.length}
-          </span>
-        </div>
-      )}
     </div>
   );
 };
-
 
 // Main Application Component
 const MedicalImagingApp: React.FC = () => {
@@ -469,8 +468,8 @@ const MedicalImagingApp: React.FC = () => {
   const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
-    if (authEnabled) {
-      supabase.auth.getSession().then(({ data }) => {
+    if (authEnabled && supabase) {
+      supabase.auth.getSession().then(({ data }: any) => {
         setLoggedIn(!!data.session);
       });
     }
@@ -548,6 +547,23 @@ const MedicalImagingApp: React.FC = () => {
     setIsProcessing(false);
   };
 
+  const loadLocalSegmentation = async (file: File): Promise<StudyData> => {
+    // For local mode, we'll create a simple study data structure
+    // In a real implementation, you'd parse the NIfTI file and generate previews
+    return {
+      study_id: 'local',
+      image_urls: [
+        '/placeholder-image.png' // You can add a placeholder or generate from the file
+      ],
+      seg_url: URL.createObjectURL(file),
+      AvailableClasses: [
+        { value: 1, label: 'Local Segmentation' },
+        { value: 2, label: 'Anatomical Structure 1' },
+        { value: 3, label: 'Anatomical Structure 2' }
+      ]
+    };
+  };
+
   if (authEnabled && !loggedIn) {
     return <LoginPage onLogin={() => setLoggedIn(true)} />;
   }
@@ -562,6 +578,7 @@ const MedicalImagingApp: React.FC = () => {
             </h1>
             <div className="text-sm text-gray-500">
               NIfTI to DICOM Converter & Viewer
+              {!authEnabled && <span className="ml-2 text-orange-500">(Local Mode)</span>}
             </div>
           </div>
         </div>
@@ -611,103 +628,33 @@ const MedicalImagingApp: React.FC = () => {
             </button>
           </div>
         )}
-      </div>
-    </div>
-  );
-};
 
-interface LoginPageProps {
-  onLogin: () => void;
-}
-
-const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [error, setError] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
-
-  const router = useRouter();
-
-  const handleLogin = async () => {
-    setError('');
-    setIsLoading(true);
-
-    if (!email || !password) {
-      setError('Please enter both email and password');
-      setIsLoading(false);
-      return;
-    }
-
-    try {
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      });
-
-      if (error) {
-        throw error;
-      }
-
-      setIsLoading(false);
-      onLogin();
-      router.push('/');
-
-    } catch (err) {
-      setIsLoading(false);
-      const errorMessage = err instanceof Error ? err.message : 'Login failed. Please try again.';
-      setError(errorMessage);
-    }
-  };
-
-  return (
-    <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-      <div className="bg-white rounded-lg shadow-lg p-8 max-w-md w-full">
-        <h2 className="text-2xl font-bold text-gray-800 mb-6 text-center">
-          Login to Your Account
-        </h2>
-
-        {error && (
-          <div className="bg-red-50 border border-red-200 rounded-md p-4 mb-6 flex items-center">
-            <AlertCircle className="h-5 w-5 text-red-500 mr-2" />
-            <span className="text-red-700">{error}</span>
+        {!authEnabled && (
+          <div className="mt-8 bg-white rounded-lg shadow-lg p-6">
+            <h3 className="text-lg font-semibold text-gray-800 mb-4">Local File Processing</h3>
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Load Local Segmentation File (.nii or .nii.gz)
+              </label>
+              <input
+                type="file"
+                accept=".nii,.nii.gz"
+                onChange={async (e) => {
+                  const file = e.target.files?.[0];
+                  if (file) {
+                    const studyData = await loadLocalSegmentation(file);
+                    setStudyData(studyData);
+                    setAvailableClasses(studyData.AvailableClasses || []);
+                  }
+                }}
+                className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
+              />
+            </div>
+            <p className="text-sm text-gray-600">
+              In local mode, you can directly load NIfTI files for viewing. Some features may be limited compared to full backend processing.
+            </p>
           </div>
         )}
-
-        <div className="mb-4">
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            Email
-          </label>
-          <input
-            type="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            className="w-full p-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-            placeholder="you@example.com"
-          />
-        </div>
-
-        <div className="mb-6">
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            Password
-          </label>
-          <input
-            type="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            className="w-full p-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-            placeholder="••••••••"
-          />
-        </div>
-
-        <button
-          onClick={() => {
-            handleLogin();
-            onLogin();
-          }}
-          className="bg-blue-600 text-white px-6 py-3 rounded-lg shadow-lg hover:bg-blue-700 transition-colors"
-        >
-          Login
-        </button>
       </div>
     </div>
   );

@@ -9,11 +9,15 @@ const nextConfig = {
     remotePatterns: [
       {
         protocol: 'https',
-        hostname: 'your-service-name.onrender.com',
-        port: '',
-        pathname: '/uploads/**',
+        hostname: '**',
+      },
+      {
+        protocol: 'http',
+        hostname: '**',
       },
     ],
+    // Or disable image optimization entirely for external images:
+    unoptimized: true,
   },
 
   // Custom Webpack configuration to solve build errors with server-side modules.
